@@ -47,10 +47,6 @@
         sorted-standings (sort-by last > standings-with-points)]
     (map first sorted-standings)))
 
-(defn print-results [result-count results-channel]
-  (future (dotimes [_ result-count] 
-            (println (<!! results-channel)))))
-
 (defn accumulate-to-distrib [acc current-result]
   (loop [current-acc acc
          remaining-teams current-result
@@ -76,13 +72,30 @@
         distrib (reduce accumulate-to-distrib distrib-seed results-seq)]
     distrib))
 
+(defn fmap [a-map f]
+  (reduce (fn [acc [k v]] (assoc acc k (f v))) {} a-map))
+
+(defn distribution-to-percentage [result-count dist]
+  (fmap dist (fn [x] (/ (float x) result-count))))
+
+(defn distributions-to-percentages [result-count dists]
+  (fmap dists (fn [team-dist] (distribution-to-percentage result-count team-dist))))
+
+(defn print-team-dist [[team-name team-dist]]
+  (let [sorted-placements (sort-by first team-dist)]
+    (str team-name " ::: " (apply str sorted-placements))))
+
+(defn print-results [placement-dists]
+  (map print-team-dist placement-dists))
+
 (defn mc-simulate-qual [initial-standings matches-with-probabilities]
   (let [results-channel (chan 2)
         times-to-run 10000]
     (mc-simulate times-to-run 
                  (fn [] (simulate-qual-once initial-standings matches-with-probabilities))
                  results-channel)
-    (reduce-results times-to-run results-channel)))
+    (print-results (distributions-to-percentages times-to-run 
+                                                 (reduce-results times-to-run results-channel)))))
 
 (def standings {:greece 0
                 :hungary 0
@@ -92,35 +105,35 @@
                 :faroe-islands 0})
 
 (def matches [[:hungary :northern-ireland 70 20 10]
-              [:faroe-islands :finland 70 20 10]
+              [:faroe-islands :finland 3 12 85]
               [:greece :romania 70 20 10]
-              [:romania :hungary 70 20 10]
-              [:finland :greece 70 20 10]
-              [:northern-ireland :faroe-islands 70 20 10]
-              [:faroe-islands :hungary 70 20 10]
-              [:finland :romania 70 20 10]
-              [:greece :northern-ireland 70 20 10]
-              [:greece :faroe-islands 70 20 10]
-              [:hungary :finland 70 20 10]
-              [:romania :northern-ireland 70 20 10]
-              [:northern-ireland :finland 70 20 10]
-              [:romania :faroe-islands 70 20 10]
-              [:hungary :greece 70 20 10]
-              [:finland :hungary 70 20 10]
-              [:northern-ireland :romania 70 20 10]
-              [:faroe-islands :greece 70 20 10]
-              [:faroe-islands :northern-ireland 70 20 10]
-              [:greece :finland 70 20 10]
-              [:hungary :romania 70 20 10]
-              [:finland :faroe-islands 70 20 10]
-              [:northern-ireland :hungary 70 20 10]
-              [:romania :greece 70 20 10]
-              [:hungary :faroe-islands 70 20 10]
-              [:northern-ireland :greece 70 20 10]
+              [:romania :hungary 60 27 13]
+              [:finland :greece 23 32 45]
+              [:northern-ireland :faroe-islands 88 10 2]
+              [:faroe-islands :hungary 3 13 84]
+              [:finland :romania 32 33 35]
+              [:greece :northern-ireland 85 12 3]
+              [:greece :faroe-islands 96 3 1]
+              [:hungary :finland 35 33 32]
+              [:romania :northern-ireland 79 17 4]
+              [:northern-ireland :finland 20 30 50]
+              [:romania :faroe-islands 95 4 1]
+              [:hungary :greece 21 31 48]
+              [:finland :hungary 41 33 26]
+              [:northern-ireland :romania 11 24 65]
+              [:faroe-islands :greece 2 7 91]
+              [:faroe-islands :northern-ireland 8 22 70]
+              [:greece :finland 78 16 6]
+              [:hungary :romania 29 32 39]
+              [:finland :faroe-islands 93 6 1]
+              [:northern-ireland :hungary 21 31 48]
+              [:romania :greece 29 33 38]
+              [:hungary :faroe-islands 92 7 1]
+              [:northern-ireland :greece 8 20 72]
               [:romania :finland 70 20 10]
-              [:faroe-islands :romania 70 20 10]
-              [:finland :northern-ireland 70 20 10]
-              [:greece :hungary 70 20 10]])
+              [:faroe-islands :romania 2 8 90]
+              [:finland :northern-ireland 69 21 10]
+              [:greece :hungary 80 15 5]])
 
 (def example-sim-result [:greece 
                          :finland 
