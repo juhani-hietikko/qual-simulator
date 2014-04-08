@@ -1,34 +1,28 @@
 (ns qual-simulator.core
-  (:gen-class))
+  (:gen-class)
+  (:require [clojure.core.async :refer [chan >!! <!! close!]]))
 
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]
   (println "Hello, World!"))
 
-(defn mc-simulate [times simulate-once combine-results]
-  (loop [times-left times
-         results-acc nil]
-    (if (= 0 times-left)
-      results-acc
-      (recur (dec times-left) (combine-results results-acc (simulate-once))))))
+(defn mc-simulate [times simulate-once output-channel]
+  (future
+    (dotimes [_ times]
+      (>!! output-channel (simulate-once)))
+    (close! output-channel)))
 
 (defn simulate-qual-once [initial-standings matches-with-probabilities]
-  nil)
+  1)
 
-(defn combine-simulation-result-to-others [acc-results result]
-  nil)
+(defn print-results [times results-channel]
+  (future (dotimes [_ times] 
+    (println (<!! results-channel)))))
 
 (defn mc-simulate-qual [initial-standings matches-with-probabilities]
-  (mc-simulate 10 
-               (fn [] (simulate-qual-once initial-standings matches-with-probabilities))
-               combine-simulation-result-to-others))
-
-
-(defn sim-foo []
-  (rand-int 10))
-
-(defn comb-foo [acc new-res]
-  (if (nil? acc)
-    [new-res]
-    (conj acc new-res)))
+  (let [results-channel (chan 2)]
+    (mc-simulate 6 
+                 (fn [] (simulate-qual-once initial-standings matches-with-probabilities))
+                 results-channel)
+    @(print-results 6 results-channel)))
